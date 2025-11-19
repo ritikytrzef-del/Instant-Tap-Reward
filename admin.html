@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instant Tap Reward - Admin Panel</title>
+<style>
+  body{font-family:Arial;background:#12232e;color:#eee;margin:0;padding:20px}
+  .container{max-width:1100px;margin:auto;background:#1a1a2e;padding:30px;border-radius:20px;box-shadow:0 20px 50px rgba(0,255,157,0.3)}
+  header{background:#00ff9d;color:#000;padding:20px;text-align:center;border-radius:15px}
+  h1{margin:0;font-size:28px;font-weight:bold}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:25px;margin:30px 0}
+  .box{background:#00ff9d;color:#000;padding:25px;border-radius:15px;text-align:center;font-weight:bold}
+  .box h2{font-size:42px;margin:10px 0}
+  table{width:100%;border-collapse:collapse;margin-top:30px}
+  th{background:#00ff9d;color:#000;padding:18px;font-weight:bold}
+  td{padding:18px;background:#1e2a38;border-bottom:1px solid #333;text-align:center}
+  .pending{color:#ff9800;font-weight:bold}
+  .approved{color:#00ff9d;font-weight:bold}
+  .rejected{color:#f44336;font-weight:bold}
+  button{padding:10px 20px;border:none;border-radius:10px;cursor:pointer;font-weight:bold;margin:5px}
+  .approve{background:#00ff9d;color:black}
+  .reject{background:#f44336;color:white}
+  .refresh{background:#3366ff;color:white;margin:20px 0;padding:15px 30px;font-size:18px}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header><h1>Instant Tap Reward - ADMIN PANEL</h1></header>
+
+  <div class="stats">
+    <div class="box"><h2 id="totalUsers">0</h2><p>Total Users</p></div>
+    <div class="box"><h2 id="totalPoints">0</h2><p>Total Points</p></div>
+    <div class="box"><h2 id="pending">0</h2><p>Pending Requests</p></div>
+    <div class="box"><h2 id="approved">0</h2><p>Approved</p></div>
+  </div>
+
+  <button class="refresh" onclick="loadData()">Refresh Dashboard</button>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>User ID</th><th>Type</th><th>Details</th><th>Time</th><th>Status</th><th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody">
+      <tr><td colspan="7">Loading requests...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+// TERA REPO LINK (bilkul sahi hai)
+const POINTS_URL = "https://raw.githubusercontent.com/ritikytrzef-del/Instant-Tap-Reward/main/points.json";
+const REQUESTS_URL = "https://raw.githubusercontent.com/ritikytrzef-del/Instant-Tap-Reward/main/requests.json";
+
+async function loadData(){
+  try{
+    const [pRes, rRes] = await Promise.all([
+      fetch(POINTS_URL + "?t=" + Date.now()),
+      fetch(REQUESTS_URL + "?t=" + Date.now())
+    ]);
+
+    const points = await pRes.json().catch(()=> ({}));
+    const requests = await rRes.json().catch(()=> []);
+
+    // Stats
+    document.getElementById("totalUsers").textContent = Object.keys(points).length;
+    document.getElementById("totalPoints").textContent = Object.values(points).reduce((a,b)=>a+(b||0),0).toLocaleString();
+    document.getElementById("pending").textContent = requests.filter(r=>!r.status||r.status==="pending").length;
+    document.getElementById("approved").textContent = requests.filter(r=>r.status==="approved").length;
+
+    // Table
+    const tbody = document.getElementById("tableBody");
+    const pendingReqs = requests.filter(r=>!r.status||r.status==="pending").reverse();
+
+    if(pendingReqs.length === 0){
+      tbody.innerHTML = "<tr><td colspan='7'>No pending requests</td></tr>";
+      return;
+    }
+
+    tbody.innerHTML = pendingReqs.map((r,i)=>`
+      <tr>
+        <td>${i+1}</td>
+        <td>${r.userId}</td>
+        <td><b>${r.type}</b></td>
+        <td>${r.details}</td>
+        <td>${r.time}</td>
+        <td class="pending">PENDING</td>
+        <td>
+          <button class="approve" onclick="approveRequest()">Approve</button>
+          <button class="reject" onclick="approveRequest('rejected')">Reject</button>
+        </td>
+      </tr>
+    `).join("");
+
+  }catch(e){
+    document.getElementById("tableBody").innerHTML = "<tr><td colspan='7'>Error loading data. Check repo name!</td></tr>";
+  }
+}
+
+function approveRequest(status = "approved"){
+  const link = "https://github.com/ritikytrzef-del/Instant-Tap-Reward/edit/main/requests.json";
+  alert(`Request ${status === "approved" ? "APPROVED" : "REJECTED"}!\n\nAb yeh link kholo aur status change karke Commit kar do:\n${link}`);
+  window.open(link, "_blank");
+}
+
+// Auto load
+loadData();
+setInterval(loadData, 20000);
+</script>
+</body>
+</html>
