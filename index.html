@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instant Tap Reward</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  body{margin:0;background:#0f0f1a;font-family:Arial;color:white;overflow:hidden}
+  #top{position:fixed;top:0;left:0;right:0;background:#1a1a2e;padding:15px;display:flex;justify-content:space-between;align-items:center;z-index:99;box-shadow:0 4px 15px rgba(0,0,0,0.5)}
+  #name{font-size:18px;font-weight:bold}
+  #points{background:#00ff9d;color:#000;padding:10px 20px;border-radius:30px;font-weight:bold}
+  #walletBtn{background:#00ff9d;color:#000;padding:12px 25px;border-radius:30px;font-weight:bold}
+  
+  #tapArea{width:280px;height:280px;margin:120px auto 20px;background:radial-gradient(#00ff9d,#00cc7a);border-radius:50%;box-shadow:0 0 60px #00ff9d;display:flex;align-items:center;justify-content:center;position:relative}
+  #coin{width:220px;height:220px;animation:float 3s ease-in-out infinite}
+  #tapCount{position:absolute;font-size:70px;font-weight:900;color:#000;text-shadow:0 0 20px white}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}}
+  
+  .plus{position:absolute;color:#ffff00;font-size:50px;font-weight:900;pointer-events:none;animation:fly 1s forwards}
+  @keyframes fly{to{transform:translateY(-200px) scale(0);opacity:0}}
+  
+  #energyBar{width:90%;max-width:380px;height:35px;background:#333;border-radius:20px;margin:20px auto;overflow:hidden;border:3px solid #00ff9d}
+  #energyFill{height:100%;width:100%;background:linear-gradient(90deg,#00ff9d,#00cc7a);transition:width 0.4s}
+  #energyText{text-align:center;font-size:18px;font-weight:bold;margin-bottom:20px}
+  #adBtn{background:#ff3366;color:white;padding:18px;border-radius:30px;width:90%;max-width:380px;margin:20px auto;display:block;font-size:20px;font-weight:bold;border:none}
+  
+  .screen{position:fixed;top:0;left:0;width:100%;height:100%;background:#0f0f1a;padding:20px;display:none;overflow-y:auto}
+  .close{position:absolute;top:15px;right:15px;background:#ff3366;color:white;width:50px;height:50px;border-radius:50%;border:none;font-size:30px}
+  .tab-btn{padding:12px 25px;margin:5px;background:#1a1a2e;border-radius:30px;font-weight:bold}
+  .tab-btn.active{background:#00ff9d;color:black}
+  
+  .voucher{background:#1a1a2e;padding:20px;border-radius:20px;margin:15px 0;text-align:center;box-shadow:0 10px 30px rgba(0,255,157,0.3)}
+  .amount{font-size:50px;font-weight:900;color:#00ff9d}
+  .redeem-btn{background:#ff3366;color:white;padding:15px;border-radius:15px;width:100%;font-size:20px;margin-top:15px;border:none}
+  .redeem-btn.active{background:#00ff9d;color:black}
+  
+  .history-item{background:#1a1a2e;padding:18px;margin:15px 0;border-radius:15px;border-left:6px solid #ff3366}
+  .history-item.pending{border-left-color:#ff9800}
+  .history-item.approved{border-left-color:#00ff9d}
+  .status{font-weight:bold;font-size:16px;margin-top:8px}
+</style>
+</head>
+<body>
+
+<div id="top">
+  <div id="name">Guest</div>
+  <div id="points">Points: <span id="point">0</span></div>
+  <button id="walletBtn" onclick="openWallet()">Wallet</button>
+</div>
+
+<div id="tapArea" onclick="tap(event)">
+  <img id="coin" src="https://i.postimg.cc/wj7d1bKk/tap-coin.png">
+  <div id="tapCount">0</div>
+</div>
+<div id="float"></div>
+
+<div id="energyBar"><div id="energyFill"></div></div>
+<div id="energyText">Energy: <span id="energyNow">10</span>/10</div>
+<button id="adBtn" onclick="watchAd()">Watch Ad & Recharge</button>
+
+<!-- Wallet Screen -->
+<div id="walletScreen" class="screen">
+  <button class="close" onclick="closeAll()">X</button>
+  <h1 style="text-align:center;color:#00ff9d;margin:40px 0">Wallet & History</h1>
+  <h2 style="text-align:center">Balance: <span id="wPoint">0</span> Points</h2>
+
+  <div style="text-align:center;margin:20px">
+    <button class="tab-btn active" onclick="showTab('rewards')">Rewards</button>
+    <button class="tab-btn" onclick="showTab('history')">History</button>
+  </div>
+
+  <div id="rewardsTab">
+    <div class="voucher"><div class="amount">₹10</div><p>3,200 Points</p>
+      <button class="redeem-btn" onclick="redeem(10,3200)">Redeem</button></div>
+    <div class="voucher"><div class="amount">₹20</div><p>6,400 Points</p>
+      <button class="redeem-btn" onclick="redeem(20,6400)">Redeem</button></div>
+    <div class="voucher"><div class="amount">₹50</div><p>16,000 Points</p>
+      <button class="redeem-btn" onclick="redeem(50,16000)">Redeem</button></div>
+    <div class="voucher"><div class="amount">₹100</div><p>32,000 Points</p>
+      <button class="redeem-btn" onclick="redeem(100,32000)">Redeem</button></div>
+  </div>
+
+  <div id="historyTab" style="display:none">
+    <h3 style="text-align:center">Withdrawal History</h3>
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<!-- Redeem Modal -->
+<div id="redeemModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:none;align-items:center;justify-content:center">
+  <div style="background:#1a1a2e;padding:30px;border-radius:20px;width:90%;max-width:400px;text-align:center">
+    <h2 style="color:#00ff9d">Redeem ₹<span id="amt">10</span></h2>
+    <input type="text" id="rName" placeholder="Full Name" style="width:100%;padding:15px;margin:10px 0;border-radius:12px;background:#333;color:white;border:none">
+    <input type="text" id="rContact" placeholder="Gmail / Phone" style="width:100%;padding:15px;margin:10px 0;border-radius:12px;background:#333;color:white;border:none">
+    <button onclick="submitRedeem()" style="background:#00ff9d;color:black;padding:15px;border-radius:12px;width:100%;margin:10px 0;font-weight:bold">Submit Request</button>
+    <button onclick="document.getElementById('redeemModal').style.display='none'" style="background:#ff3366;color:white;padding:15px;border-radius:12px;width:100%">Cancel</button>
+  </div>
+</div>
+
+<script>
+Telegram.WebApp.ready(); Telegram.WebApp.expand();
+const user = Telegram.WebApp.initDataUnsafe.user || {id: "guest"+Date.now(), first_name: "Guest"};
+const userId = user.id.toString();
+document.getElementById("name").textContent = user.first_name || "Guest";
+
+let points = parseInt(localStorage.getItem("p_"+userId)) || 0);
+let energy = 10;
+
+// GITHUB FILES (TERA REPO)
+const BASE = "https://raw.githubusercontent.com/ritikytrzef-del/tapreward/main";
+const POINTS_URL = BASE + "/points.json";
+const REQUESTS_URL = BASE + "/requests.json";
+
+function update(){
+  document.getElementById("point").textContent = points.toLocaleString();
+  document.getElementById("wPoint").textContent = points.toLocaleString();
+  document.getElementById("tapCount").textContent = points.toLocaleString();
+  document.getElementById("energyFill").style.width = (energy*10)+"%";
+  document.getElementById("energyNow").textContent = energy;
+  loadHistory();
+}
+update(); setInterval(update, 10000);
+
+function tap(e){
+  if(energy <= 0) return;
+  energy--; points++;
+  localStorage.setItem("p_"+userId, points);
+  
+  const p = document.createElement("div"); p.className="plus"; p.textContent="+1";
+  p.style.left = (e.touches?.[0].clientX || e.clientX)+"px";
+  p.style.top = (e.touches?.[0].clientY || e.clientY)+"px";
+  document.getElementById("float").appendChild(p);
+  setTimeout(()=>p.remove(),1000);
+  
+  Telegram.WebApp.HapticFeedback.impactOccurred("medium");
+  update();
+}
+
+function watchAd(){ energy = 10; update(); Telegram.WebApp.showAlert("Energy Recharge!"); }
+
+let selectedAmt = 0;
+function redeem(amt, req){
+  if(points < req) return Telegram.WebApp.showAlert("Not enough points!");
+  selectedAmt = amt;
+  document.getElementById("amt").textContent = amt;
+  document.getElementById("redeemModal").style.display = "flex";
+}
+
+async function submitRedeem(){
+  const name = document.getElementById("rName").value.trim();
+  const contact = document.getElementById("rContact").value.trim();
+  if(!name || !contact) return Telegram.WebApp.showAlert("Fill all fields");
+  
+  points -= (selectedAmt===10?3200:selectedAmt===20?6400:selectedAmt===50?16000:32000);
+  localStorage.setItem("p_"+userId, points);
+  
+  const req = {userId, type:`Google Play ₹${selectedAmt}`, details:`${name} | ${contact}`, time:new Date().toLocaleString("en-IN"), status:"pending"};
+  
+  // Save request (GitHub auto update hoga admin se)
+  let reqs = JSON.parse(localStorage.getItem("local_reqs")|| "[]");
+  reqs.push(req); localStorage.setItem("local_reqs", JSON.stringify(reqs));
+  
+  document.getElementById("redeemModal").style.display = "none";
+  Telegram.WebApp.showAlert("Request sent! Check History");
+  update();
+}
+
+async function loadHistory(){
+  let all = [];
+  try{
+    const res = await fetch(REQUESTS_URL + "?t="+Date.now());
+    all = await res.json();
+  }catch(e){
+    all = JSON.parse(localStorage.getItem("local_reqs")|| "[]");
+  }
+  const mine = all.filter(r => r.userId === userId).reverse();
+  const list = document.getElementById("historyList");
+  list.innerHTML = mine.length === 0 ? "<p style='text-align:center;color:#666'>No requests yet</p>" : mine.map(r=>`
+    <div class="history-item ${r.status||'pending'}">
+      <div style="font-weight:bold">${r.type}</div>
+      <div style="font-size:14px">${r.details}</div>
+      <div style="font-size:13px;color:#888">${r.time}</div>
+      <div class="status">${(r.status||"pending").toUpperCase()}</div>
+    </div>
+  `).join("");
+}
+
+function openWallet(){ document.getElementById("walletScreen").style.display="block"; update(); }
+function closeAll(){ document.querySelectorAll(".screen").forEach(s=>s.style.display="none"); }
+function showTab(t){ document.getElementById("rewardsTab").style.display = t==="rewards"?"block":"none"; document.getElementById("historyTab").style.display = t==="history"?"block":"none"; }
+</script>
+</body>
+</html>
